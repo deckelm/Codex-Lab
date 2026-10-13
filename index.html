@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>סטופר | שעון עצר</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 24px; font-family: Arial, sans-serif; color: #f1f5f9; background: radial-gradient(ellipse at 20% 10%, #23334f 0, transparent 55%), #101827; }
+    main { width: min(100%, 540px); padding: 48px 32px; text-align: center; background: #192335; border: 1px solid #344155; border-radius: 28px; box-shadow: 0 24px 80px #0004; }
+    .badge { display: inline-flex; align-items: center; gap: 8px; color: #a8b8d0; font-size: 14px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+    main.running .dot { background: #5eead4; box-shadow: 0 0 12px #5eead466; }
+    h1 { margin: 24px 0 8px; font-size: 32px; }
+    .subtitle { margin: 0; color: #a8b8d0; line-height: 1.6; }
+    .clock { margin: 40px 0; }
+    .digits { display: flex; align-items: baseline; justify-content: center; gap: 6px; direction: ltr; font-size: clamp(38px, 9vw, 64px); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -2px; }
+    .fraction { color: #5eead4; }
+    .labels { margin-top: 12px; color: #a8b8d0; font-size: 13px; }
+    .controls { display: flex; gap: 12px; }
+    button { flex: 1; min-height: 50px; padding: 12px; border: 1px solid #42516a; border-radius: 12px; background: #263348; color: #f1f5f9; font: inherit; font-weight: 700; cursor: pointer; transition: background .15s, transform .15s; }
+    button:hover:enabled { background: #34455e; transform: translateY(-2px); }
+    #start { background: #5eead4; color: #102b2a; border-color: #5eead4; }
+    #start:hover:enabled { background: #99f6e4; }
+    button:disabled { opacity: .4; cursor: default; }
+    button:focus-visible { outline: 3px solid #c4b5fd; outline-offset: 4px; }
+    .hint { margin: 24px 0 0; font-size: 13px; color: #a8b8d0; }
+    @media (max-width: 380px) { main { padding: 32px 18px; } .controls { gap: 8px; } }
+    @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+  </style>
+</head>
+<body>
+  <main id="stopwatch">
+    <div class="badge"><span class="dot" aria-hidden="true"></span><span id="status" role="status">מוכן להתחלה</span></div>
+    <h1>שעון עצר</h1>
+    <p class="subtitle">כל רגע נחשב. מתחילים כשמוכנים.</p>
+    <div class="clock">
+      <div class="digits" role="timer" aria-label="זמן שחלף בדקות, שניות ומאיות שנייה" aria-live="off"><span id="minutes">00</span><span>:</span><span id="seconds">00</span><span class="fraction">.</span><span id="hundredths" class="fraction">00</span></div>
+      <div class="labels">דקות · שניות · מאיות שנייה</div>
+    </div>
+    <div class="controls">
+      <button id="start" type="button">התחל</button>
+      <button id="stop" type="button" disabled>עצור</button>
+      <button id="reset" type="button">איפוס</button>
+    </div>
+    <p class="hint">אפשר לעצור ולהמשיך בדיוק מאותה נקודה.</p>
+  </main>
+  <script>
+    const panel = document.getElementById('stopwatch');
+    const status = document.getElementById('status');
+    const minutes = document.getElementById('minutes');
+    const seconds = document.getElementById('seconds');
+    const hundredths = document.getElementById('hundredths');
+    const start = document.getElementById('start');
+    const stop = document.getElementById('stop');
+    const reset = document.getElementById('reset');
+    let elapsed = 0;
+    let startedAt = 0;
+    let running = false;
+    let frame = null;
+
+    function render(time) {
+      const ticks = Math.floor(time / 10);
+      minutes.textContent = String(Math.floor(ticks / 6000)).padStart(2, '0');
+      seconds.textContent = String(Math.floor(ticks / 100) % 60).padStart(2, '0');
+      hundredths.textContent = String(ticks % 100).padStart(2, '0');
+    }
+
+    function update() {
+      render(elapsed + performance.now() - startedAt);
+      frame = requestAnimationFrame(update);
+    }
+
+    function setState(message) {
+      panel.classList.toggle('running', running);
+      start.disabled = running;
+      stop.disabled = !running;
+      status.textContent = message;
+    }
+
+    start.addEventListener('click', () => {
+      if (running) return;
+      startedAt = performance.now();
+      running = true;
+      setState('המדידה פועלת');
+      update();
+    });
+
+    stop.addEventListener('click', () => {
+      if (!running) return;
+      elapsed += performance.now() - startedAt;
+      running = false;
+      cancelAnimationFrame(frame);
+      render(elapsed);
+      start.textContent = 'המשך';
+      setState('המדידה נעצרה');
+      start.focus();
+    });
+
+    reset.addEventListener('click', () => {
+      running = false;
+      cancelAnimationFrame(frame);
+      elapsed = 0;
+      render(0);
+      start.textContent = 'התחל';
+      setState('מוכן להתחלה');
+    });
+  </script>
+</body>
+</html>
