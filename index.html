@@ -3,12 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101827">
+  <meta name="theme-color" content="#080d16">
   <title>סטופר | שעון עצר</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 24px; font-family: Arial, sans-serif; color: #f1f5f9; background: radial-gradient(ellipse at 20% 10%, #23334f 0, transparent 55%), #101827; }
-    main { width: min(100%, 540px); padding: 48px 32px; text-align: center; background: #192335; border: 1px solid #344155; border-radius: 28px; box-shadow: 0 24px 80px #0004; }
+    .top-nav { position: absolute; top: 20px; right: 24px; }
+    .top-nav a { color: #a8b8d0; text-decoration: none; padding: 10px; display: inline-block; }
+    .top-nav a:hover { color: #5eead4; }
+    .top-nav a:focus-visible { outline: 3px solid #c4b5fd; outline-offset: 3px; border-radius: 8px; }
+    body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 80px 24px 24px; font-family: Arial, sans-serif; color: #f1f5f9; background: radial-gradient(ellipse at 20% 10%, #142036 0, transparent 55%), #080d16; }
+    main { width: min(100%, 540px); padding: 48px 32px; text-align: center; background: #111a29; border: 1px solid #344155; border-radius: 28px; box-shadow: 0 24px 80px #0004; }
     .badge { display: inline-flex; align-items: center; gap: 8px; color: #a8b8d0; font-size: 14px; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
     main.running .dot { background: #5eead4; box-shadow: 0 0 12px #5eead466; }
@@ -18,7 +22,12 @@
     .digits { display: flex; align-items: baseline; justify-content: center; gap: 6px; direction: ltr; font-size: clamp(38px, 9vw, 64px); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -2px; }
     .fraction { color: #5eead4; }
     .labels { margin-top: 12px; color: #a8b8d0; font-size: 13px; }
-    .controls { display: flex; gap: 12px; }
+    .controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .laps { margin-top: 28px; text-align: right; }
+    .laps h2 { margin: 0 0 12px; font-size: 18px; }
+    .lap-list { margin: 0; padding: 0; list-style: none; max-height: 240px; overflow-y: auto; }
+    .lap-list li { display: flex; justify-content: space-between; gap: 16px; padding: 14px 4px; border-bottom: 1px solid #344155; color: #a8b8d0; }
+    .lap-list time { color: #5eead4; direction: ltr; font-variant-numeric: tabular-nums; }
     button { flex: 1; min-height: 50px; padding: 12px; border: 1px solid #42516a; border-radius: 12px; background: #263348; color: #f1f5f9; font: inherit; font-weight: 700; cursor: pointer; transition: background .15s, transform .15s; }
     button:hover:enabled { background: #34455e; transform: translateY(-2px); }
     #start { background: #5eead4; color: #102b2a; border-color: #5eead4; }
@@ -26,11 +35,12 @@
     button:disabled { opacity: .4; cursor: default; }
     button:focus-visible { outline: 3px solid #c4b5fd; outline-offset: 4px; }
     .hint { margin: 24px 0 0; font-size: 13px; color: #a8b8d0; }
-    @media (max-width: 380px) { main { padding: 32px 18px; } .controls { gap: 8px; } }
+    @media (max-width: 420px) { main { padding: 32px 18px; } .controls { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
     @media (prefers-reduced-motion: reduce) { button { transition: none; } }
   </style>
 </head>
 <body>
+  <nav class="top-nav" aria-label="ניווט ראשי"><a href="/colors/">מחולל צבעים ←</a></nav>
   <main id="stopwatch">
     <div class="badge"><span class="dot" aria-hidden="true"></span><span id="status" role="status">מוכן להתחלה</span></div>
     <h1>שעון עצר</h1>
@@ -42,8 +52,13 @@
     <div class="controls">
       <button id="start" type="button">התחל</button>
       <button id="stop" type="button" disabled>עצור</button>
+      <button id="lap" type="button" disabled>הקפה</button>
       <button id="reset" type="button">איפוס</button>
     </div>
+    <section id="laps" class="laps" aria-labelledby="laps-title" hidden>
+      <h2 id="laps-title">זמני ביניים</h2>
+      <ol id="lap-list" class="lap-list" aria-live="polite" aria-relevant="additions"></ol>
+    </section>
     <p class="hint">אפשר לעצור ולהמשיך בדיוק מאותה נקודה.</p>
   </main>
   <script>
@@ -55,6 +70,10 @@
     const start = document.getElementById('start');
     const stop = document.getElementById('stop');
     const reset = document.getElementById('reset');
+    const lap = document.getElementById('lap');
+    const laps = document.getElementById('laps');
+    const lapList = document.getElementById('lap-list');
+    let lapCount = 0;
     let elapsed = 0;
     let startedAt = 0;
     let running = false;
@@ -76,6 +95,7 @@
       panel.classList.toggle('running', running);
       start.disabled = running;
       stop.disabled = !running;
+      lap.disabled = !running;
       status.textContent = message;
     }
 
@@ -98,10 +118,29 @@
       start.focus();
     });
 
+    lap.addEventListener('click', () => {
+      if (!running) return;
+      const time = elapsed + performance.now() - startedAt;
+      render(time);
+      const row = document.createElement('li');
+      const label = document.createElement('span');
+      const timestamp = document.createElement('time');
+      label.textContent = `הקפה ${++lapCount}`;
+      timestamp.textContent = `${minutes.textContent}:${seconds.textContent}.${hundredths.textContent}`;
+      timestamp.dateTime = `PT${(Math.floor(time / 10) / 100).toFixed(2)}S`;
+      row.append(label, timestamp);
+      lapList.append(row);
+      laps.hidden = false;
+      lapList.scrollTop = lapList.scrollHeight;
+    });
+
     reset.addEventListener('click', () => {
       running = false;
       cancelAnimationFrame(frame);
       elapsed = 0;
+      lapCount = 0;
+      lapList.replaceChildren();
+      laps.hidden = true;
       render(0);
       start.textContent = 'התחל';
       setState('מוכן להתחלה');

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>מחולל פלטות צבעים</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand"><span class="brand-icon" aria-hidden="true">◒</span><h1>פלטת צבעים</h1></div>
+    <p class="shortcut">לחצו על רווח לפלטה חדשה · נעלו צבעים שאהבתם</p>
+    <div class="actions"><button id="generate" type="button">פלטה חדשה <span aria-hidden="true">↻</span></button><a href="/">חזרה לסטופר ←</a></div>
+  </header>
+  <main id="palette" class="palette" aria-label="פלטה של חמישה צבעים"></main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <noscript><p class="no-script">יש להפעיל JavaScript כדי להשתמש במחולל הצבעים.</p></noscript>
+</body>
+</html>
